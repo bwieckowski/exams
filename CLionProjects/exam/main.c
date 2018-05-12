@@ -2,50 +2,24 @@
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <curses.h>
+
+#include "exam.h"
 
 
+void do_EXAM();
 
-struct question{
-    char * quest;
-    char ** answers;
-    char correct;
-} QUESTION;
-
-
-struct exam {
-    struct QUESTION * questions;
-    int points;
-} EXAM;
-
-//void loadQuestions( struct question * qs, FILE * file)
-//{
-//    char * point;
-//    printf("dupa");
-////    ( *qs ).quest  = ( struct question * ) malloc( 250 * sizeof( struct question ) );
-//    char line[250];
-//    if ( point = fgets(line, 250, file) != NULL )
-//        printf("The string is %s\n", point);
-//
-//
-//
-//    //  qs = ( struct question * ) realloc( qs, 1 * sizeof( struct question ) );
-//    //printf("%s",(*qs).quest);
-//
-//
-//}
-
-
-
-char ** loadQuestions( FILE * stream, struct EXAM * exam, int * lin )
+QUESTION * loadQuestions( FILE * stream  )
 {
-    char tmp, **text;
-    int i, lines = 0, line_buffor = 0, line_tmp = 0;
+    char tmp, *text = NULL;
+    int i = 0, lines = 0, line_buffor = 0, line_tmp = 0, pom = 0;
+
 
     while(!feof(stream)){
         tmp = fgetc(stream);
         // zliczanie znaków
         line_tmp++;
-
         if( tmp == '\n' || tmp == EOF ) {
             //zliczanie wierszy
             lines++;
@@ -58,64 +32,185 @@ char ** loadQuestions( FILE * stream, struct EXAM * exam, int * lin )
 
     }
 
+
     rewind( stream );
+    QUESTION * pyt = NULL;
+    QUESTION * first = NULL;
+    QUESTION *top = NULL;
 
-    text = (char ** ) malloc( lines * sizeof( char* ) );
+    text = (char*)malloc(sizeof(char)*( line_buffor ));
 
-    // Sprawdzenie powodzenia alokacji tablicy text
-    if( text == NULL  )
-        exit(1);
-
-    //Wczytywanie wierszy do tablicy
     for ( i= 0; i < lines; i++) {
-        text[i] = malloc(line_buffor* sizeof(char));
-        fgets(text[i], line_buffor, stream);
+
+
+        switch ( i%6 )
+        {
+
+          // Add question
+            case 0:
+                pyt = ( QUESTION * ) malloc( sizeof( QUESTION ) );
+                pyt->quest=(char*)malloc(sizeof(char)*( line_buffor ));
+                fgets(pyt->quest, line_buffor, stream);
+
+                if(!first)
+                    first=pyt;
+                pyt ->answers=(char**)malloc( sizeof(char*)*4 );
+                break;
+
+         // Add answers to array
+            case 1:
+            case 2:
+            case 3:
+            case 4:
+                pom =(i%6)-1;
+                pyt->answers[pom] = ( char * )malloc( sizeof(char)*line_buffor);
+                fgets(pyt->answers[pom], line_buffor, stream);
+                break;
+
+         //add correct question
+            case 5:
+                fgets(text, line_buffor, stream);
+                pyt->correct=atoi( text );
+                pyt->next=top;
+                top=pyt;
+                break;
+        }
     }
 
-    *lin = lines;
-    return text;
+    return top;
 
 }
 
 
-struct question newQuestion( char * quest, char ** answers, int correct  )
+
+void read_QUESTION( QUESTION * question)
 {
-    struct question q;
-    q.quest = quest;
-    q.answers =  answers;
-    q.correct = correct;
-    return q;
+    int i = 0;
+    char labels[4] = {'1' , '2' , '3', '4'};
+    char * text = question->quest;
+    printf("%s",text);
+    for ( ;  i < 4; i++) {
+        printf("%c ) %s",labels[i],question->answers[i]);
+    }
+
+    printf("\n");
 }
 
-void readQuestion( struct question q )
+EXAM * init_EXAM()
 {
-    char ans;
-    printf("%s \n", q.quest);
-    printf( "%s", q.answers );
 
+    EXAM * exam;
+    // pointer to file with questions
+    FILE * fQuestions;
+    QUESTION * tmp;
+
+    exam =  ( EXAM *  ) malloc( sizeof( EXAM ) );
+
+    fQuestions = fopen( "questions.txt", "r");
+
+    if( fQuestions == NULL )
+        printf(" nie znaleziono pliku");
+    else
+    {
+        printf(" odnaleziono plik \n");
+        exam->top = loadQuestions( fQuestions  );
+
+    }
+    tmp = exam->top;
+    exam->total = 0;
+    while( tmp )
+    {
+        exam->total++;
+        tmp = tmp->next;
+    }
+    return exam;
+}
+
+
+char getChoice( )
+{
+    char  ch, ret;
+    while ( (ch = getchar()) != '\n' && ch != EOF ){ ret = ch; }
+    return ret;
+}
+
+void display_menu()
+{
+
+    printf("1 - nowy egazmin \n");
+    printf("2 - ostatnie punkty i czas \n");
+    printf("3 - losuj pytanie \n");
+    printf("e - exit \n");
+}
+
+
+void Do_EXAM( EXAM * exam ) {
+    int answer = 0;
+    QUESTION * tmp = exam->top;
+    printf(" Możesz zdobyc %d punktow \n", exam->total);
+    while( tmp ) {
+        read_QUESTION( tmp );
+
+        do
+        {
+            answer =  getChoice() - '0';
+        }
+        while( answer != 1 && answer != 2 && answer != 3 && answer != 4);
+
+
+        printf("your: %d, answer : %d \n", answer,tmp->correct);
+
+        if ( answer == tmp->correct) {
+            exam->points++;
+            printf("masz punkciora \n");
+        }
+
+        tmp = tmp->next;
+    }
+
+    printf("Egzamin zakończony zdobyłeś : %d  puktow \n\n", exam->points);
+
+}
+
+
+void init_menu( EXAM * current_EXAM ) {
+    char choice = NULL;
+
+    while (1)
+    {
+        display_menu();
+        choice = getChoice( );
+
+        switch (choice) {
+            case '1':
+                Do_EXAM(current_EXAM);
+                break;
+            case '2':
+                if (current_EXAM->points)
+                    printf("twoj wynik z ostatniego testu to: %d", current_EXAM->points);
+                else
+                    printf("Nie rozwiązano testu");
+                break;
+            case '3':
+                break;
+            case 'e':
+                system("pause ");
+                exit(0);
+            default:
+                printf("niepoprawny symbol  \n");
+                break;
+
+         }
+    }
 }
 
 
 int main(int argc, char *argv[])
 {
 
-    struct EXAM egzamin;
-    FILE * fQuestions;
-    int * lin;
-    egzamin =  malloc( sizeof( EXAM ) );
-
-    fQuestions = fopen( "questions.txt", "r");
-    if( fQuestions == NULL )
-        printf(" nie znaleziono pliku");
-    else
-    {
-        printf(" odnaleziono plik \n");
-
-        loadQuestions( egzamin.questions ,fQuestions, lin );
-
-    }
+    EXAM * exam = init_EXAM();
 
 
-    //readQuestion( current );
-    return 0;
+        init_menu( exam );
+
 }
