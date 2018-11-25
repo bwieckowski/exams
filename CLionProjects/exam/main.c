@@ -17,24 +17,6 @@ struct exam {
     int points;
 } EXAM;
 
-//void loadQuestions( struct question * qs, FILE * file)
-//{
-//    char * point;
-//    printf("dupa");
-////    ( *qs ).quest  = ( struct question * ) malloc( 250 * sizeof( struct question ) );
-//    char line[250];
-//    if ( point = fgets(line, 250, file) != NULL )
-//        printf("The string is %s\n", point);
-//
-//
-//
-//    //  qs = ( struct question * ) realloc( qs, 1 * sizeof( struct question ) );
-//    //printf("%s",(*qs).quest);
-//
-//
-//}
-
-
 
 char ** loadQuestions( FILE * stream, struct EXAM * exam, int * lin )
 {
